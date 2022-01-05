@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from binance import Client, client
+from binance import Client
 from dotenv import dotenv_values
 from datetime import datetime, timedelta
 from typing import List
