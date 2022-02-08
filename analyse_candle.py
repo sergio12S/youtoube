@@ -4,6 +4,7 @@ import pandas as pd
 
 import vectorbt as vbt
 import pandas_ta as ta
+from tqdm import tqdm
 import pickle
 import warnings
 warnings.simplefilter(action='ignore')
@@ -41,7 +42,7 @@ def generate_statistics(data, signal, patterns, patterns_2, target):
         .reset_index()
 
 
-def backtest_statistics(data, signal, patterns, patterns_2, target, v):
+def backtest_statistics(data, signal, patterns, target, v):
     if v['mean'] > 0:
         build_signals(data, signal, patterns, patterns_2, target, v)
         return vbt.Portfolio.from_signals(
@@ -69,11 +70,15 @@ def build_signals(data, signal, patterns, patterns_2, target, v):
     data['exits'] = np.where(rules.shift(target), True, False)
 
 
-def add_candle_pattetns(results, patterns, target, stat, pf_stat, position):
+def add_candle_pattetns(
+    results, patterns, patterns_2, target, stat, pf_stat, position
+):
     trading_statistics = {
         'pf_stat': pf_stat,
         'df_stat': stat,
-        'position': position
+        'position': position,
+        'patterns': patterns,
+        'patterns_2': patterns_2
     }
     results[patterns][target] = trading_statistics
 
@@ -88,19 +93,22 @@ def save_results(results):
         pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def backtest_strategy(data, patterns_2, results, signal, patterns, target, stat):
+def backtest_strategy(
+    data, patterns_2, results, signal, patterns, target, stat, plot=False
+):
     for _, v in stat.iterrows():
         data['entries'] = 0
         data['exits'] = 0
-        pf = backtest_statistics(data, signal, patterns, patterns_2, target, v)
+        pf = backtest_statistics(data, signal, patterns, target, v)
         pf_stat = pf.stats()
         if pf_stat['Total Return [%]'] < 0:
             continue
         position = 'short' if v['mean'] < 0 else 'long'
-        add_candle_pattetns(results, patterns,
-                            target, stat, pf_stat, position)
-        save_plot(signal, patterns, patterns_2,
-                  target, v, pf, position)
+        add_candle_pattetns(results, patterns, patterns_2,
+                            target, v, pf_stat, position)
+        if plot:
+            save_plot(signal, patterns, patterns_2,
+                      target, v, pf, position)
 
 
 if __name__ == '__main__':
@@ -112,13 +120,13 @@ if __name__ == '__main__':
     signals = np.unique(data[candles.columns].values)
     results = {}
 
-    for signal in signals:
-        if signal == 0:
+    for patterns in tqdm(candles.columns):
+        if patterns == 'CDL_DOJI_10_0.1':
             continue
-        for patterns in candles.columns:
-            if patterns == 'CDL_DOJI_10_0.1':
+        results[patterns] = {}
+        for signal in signals:
+            if signal == 0:
                 continue
-            results[patterns] = {}
             for target in target_names:
                 stat = generate_statistics(
                     data, signal, patterns, patterns_2, target)
@@ -126,6 +134,6 @@ if __name__ == '__main__':
                     continue
 
                 backtest_strategy(data, patterns_2, results,
-                                  signal, patterns, target, stat)
+                                  signal, patterns, target, stat, plot=False)
 
     save_results(results)
