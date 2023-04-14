@@ -230,10 +230,10 @@ def analyse_crypto_market(parameters):
 
 if __name__ == '__main__':
     parameters = {
-        'ticker': 'BTCUSDT',
-        'days': 60,
+        'ticker': 'ADAUSDT',
+        'days': 30,
         'lag': 200,
-        'ts': '1h'
+        'ts': '5m'
     }
     # Make research of super machine learning model
     analyse_crypto_market(parameters=parameters)
